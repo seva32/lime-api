@@ -21,8 +21,8 @@ const router = express.Router();
 router.post(
   "/signup",
   [
-    expressValidator.authValidationRules(),
-    expressValidator.profileValidationRules(),
+    ...expressValidator.authValidationRules(),
+    ...expressValidator.profileValidationRules(),
     expressValidator.validate,
     checkDuplicateEmail,
     checkRolesExisted,
@@ -32,7 +32,7 @@ router.post(
 router.post(
   "/signin",
   [
-    expressValidator.authValidationRules(),
+    ...expressValidator.authValidationRules(),
     expressValidator.validate,
     ...(isDocker ? [] : [cors]),
   ],
@@ -43,7 +43,7 @@ router.post("/refresh-token", [cors], refreshTokenController);
 router.post(
   "/reset-password",
   [
-    expressValidator.authValidationRules(),
+    ...expressValidator.authValidationRules(),
     expressValidator.validate,
     checkThirdPartyProvider,
     ...(isDocker ? [] : [cors]),
@@ -53,7 +53,7 @@ router.post(
 router.post(
   "/change-password",
   [
-    expressValidator.authValidationRules(),
+    ...expressValidator.authValidationRules(),
     expressValidator.validate,
     ...(isDocker ? [] : [cors]),
   ],

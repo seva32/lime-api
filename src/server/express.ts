@@ -57,6 +57,7 @@ process.env.NODE_ENV === "production" &&
 const session = require("express-session");
 const MongoStore = require("connect-mongo")(session);
 const swaggerDocument = require("../../swagger.json");
+import { Request, Response, NextFunction } from "express";
 
 server.use(
   session({
@@ -134,7 +135,13 @@ server.use(
 );
 
 // error handler
-server.use((err, req, res, next) => {
+interface Error {
+  message: string;
+  stack?: string;
+  status?: number;
+}
+
+server.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err) {
     console.error("Message: ", err.message);
     console.error("Stack: ", err.stack);
