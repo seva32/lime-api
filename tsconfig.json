@@ -1,42 +1,22 @@
 {
-    "compileOnSave": false,
-    "compilerOptions": {
-      "rootDir": ".",
-      "sourceMap": true,
-      "declaration": false,
-      "moduleResolution": "node",
-      "esModuleInterop": true,
-      "emitDecoratorMetadata": true,
-      "experimentalDecorators": true,
-      "importHelpers": true,
-      "target": "es2015",
-      "module": "esnext",
-      "lib": [
-        "es2017",
-        "dom"
-      ],
-      "skipLibCheck": true,
-      "skipDefaultLibCheck": true,
-      "baseUrl": ".",
-      "paths": {
-        "@limebasket/api-interfaces": [
-          "libs/api-interfaces/src/index.ts"
-        ],
-        "@limebasket/storybook": [
-          "libs/storybook/src/index.ts"
-        ]
-      }
-    },
-    "exclude": [
-      "node_modules",
-      "tmp"
-    ],
-     "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "checkJs": false,
+    "moduleResolution": "node",
+    "skipDefaultLibCheck": true,
+    "baseUrl": "./",
+    "paths": {
+      "*": ["node_modules/*", "src/types/*"]
     }
-  ]
+  },
+  "include": ["src/**/*", "src/common.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }
