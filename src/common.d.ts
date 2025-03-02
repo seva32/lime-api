@@ -1,1 +1,3 @@
-declare module "yup";
+declare module "throng";
+declare module "cookie-parser";
+declare module "swagger-ui-express";
