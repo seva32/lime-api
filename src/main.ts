@@ -72,7 +72,7 @@ function start() {
             );
           });
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error("MongoDB connection error", err);
         process.exit();
       });
