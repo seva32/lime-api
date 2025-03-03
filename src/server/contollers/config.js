@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import { isDockerDev } from "../express";
 
 dotenv.config();
 
@@ -11,7 +10,7 @@ export const cookiesOptions = {
   maxAge: 5184000000, // 2m
   path: "/",
   sameSite: "lax",
-  domain: isDockerDev ? "localhost" : "limebasket.tk",
+  domain:  "localhost",
 };
 
 export default {
