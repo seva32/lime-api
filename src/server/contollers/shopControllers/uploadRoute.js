@@ -1,5 +1,7 @@
 import express from "express";
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 
 import { isAdmin, cors, jwtMiddleware } from "../../middleware";
 
@@ -7,15 +9,21 @@ import db from "../../models";
 
 const User = db.user;
 
+const uploadDir = path.join(__dirname, "../../../uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const fileStorage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, "uploads/");
+    cb(null, uploadDir);
   },
   filename(req, file, cb) {
     const filename = file.originalname
       .replace(/[^a-z0-9.]/gi, "_")
       .toLowerCase();
-    cb(null, `${new Date().toISOString()}-${filename}`);
+    const date = new Date().toISOString().replace(/:/g, "-"); // Replace ':' to ensure compatibility
+    cb(null, `${date}-${filename}`);
   },
 });
 
@@ -49,11 +57,11 @@ router.post(
   ],
   async (req, res) => {
     if (!req.file) {
-      return res.status(500).send({
-        message: "Internal server error, try again.",
+      return res.status(412).send({
+        message: "Image is required.",
       });
     }
-
+    console.log(req.accessTokenUserId);
     const userId = req.accessTokenUserId;
     const user = await User.findById(userId);
     if (user) {
