@@ -73,10 +73,10 @@ server.use(
 
 server.use((req, res, next) => {
   const corsWhitelist = [
-    process.env.SERVER_URL,
-    "localhost",
-    "http://localhost",
     "http://localhost:3000",
+    "https://sfantini.us",
+    "https://limebasket.sfantini.us",
+    "https://lime-api.sfantini.us",
   ];
   if (corsWhitelist.includes(req.headers.origin)) {
     res.header("Access-Control-Allow-Origin", req.headers.origin);
