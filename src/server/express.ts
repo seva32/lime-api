@@ -76,15 +76,7 @@ server.use((req, res, next) => {
     process.env.SERVER_URL,
     "localhost",
     "http://localhost",
-    "http://localhost:4200",
-    "api.localhost",
-    "http://api.localhost",
-    "limebasket.tk",
-    "https://limebasket.tk",
-    "www.limebasket.tk",
-    "https://www.limebasket.tk",
-    "api.limebasket.tk",
-    "https://api.limebasket.tk",
+    "http://localhost:3000",
   ];
   if (corsWhitelist.includes(req.headers.origin)) {
     res.header("Access-Control-Allow-Origin", req.headers.origin);
