@@ -2,17 +2,7 @@ import cors from "cors";
 
 const corsWhitelist = [
   process.env.SERVER_URL,
-  "localhost",
-  "http://localhost",
-  "http://localhost:4200",
-  "api.localhost",
-  "http://api.localhost",
-  "limebasket.tk",
-  "https://limebasket.tk",
-  "www.limebasket.tk",
-  "https://www.limebasket.tk",
-  "api.limebasket.tk",
-  "https://api.limebasket.tk",
+  "https://limebasket.sfantini.us",
 ];
 
 const corsOptions = {

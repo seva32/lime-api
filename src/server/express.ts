@@ -10,7 +10,8 @@ import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 
 import { cookiesOptions } from "./contollers/config";
-import { cors, rateLimiterMiddleware } from "./middleware";
+import { rateLimiterMiddleware } from "./middleware";
+import cors from "cors";
 import {
   authRouter,
   authFilterRouter,
@@ -44,8 +45,17 @@ server.use(
 server.use(cookieParser());
 server.use(fingerprint());
 
-// no need for cors as we're using nginx proxy
-// if (!isDocker) server.options("*", cors);
+const whitelist = ['https://limebasket.sfantini.us', 'https://sfantini.us', 'http://localhost:3000'];
+const corsOptionsDelegate = function (req, callback) {
+  var corsOptions;
+  if (whitelist.indexOf(req.header('Origin')) !== -1) {
+    corsOptions = { origin: true, credentials: true } // reflect (enable) the requested origin in the CORS response
+  } else {
+    corsOptions = { origin: false } // disable CORS for this request
+  }
+  callback(null, corsOptions) // callback expects two parameters: error and options
+}
+server.options('*', cors(corsOptionsDelegate));
 
 process.env.NODE_ENV === "production" &&
   server.use(
@@ -80,6 +90,7 @@ server.use((req, res, next) => {
   ];
   if (corsWhitelist.includes(req.headers.origin)) {
     res.header("Access-Control-Allow-Origin", req.headers.origin);
+    res.setHeader("Vary", "Origin");
   }
   res.header("Access-Control-Allow-Credentials", "true");
   res.header(
