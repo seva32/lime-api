@@ -1,7 +1,7 @@
 /* eslint-disable consistent-return */
-import jwt from 'jsonwebtoken';
-import config from '../contollers/config';
-import db from '../models/index';
+import jwt from "jsonwebtoken";
+import config from "../contollers/config";
+import db from "../models/index";
 
 const User = db.user;
 const Token = db.token;
@@ -14,52 +14,48 @@ export function getAccessToken(payload) {
 
 // promise based to check that new refresh token got saved in db
 // fingerprint to add extra security check
-export function getRefreshToken(user, fingerprint) {
-  return new Promise((resolve, reject) => {
-    const {
-      hash,
-      components: {
-        useragent: {
-          browser: { family: browserfamily = 'unknown' } = {},
-          os: { family: osfamily = 'unknown' } = {},
-        } = {},
-      },
-    } = fingerprint;
+export async function getRefreshToken(user, fingerprint) {
+  const {
+    hash,
+    components: {
+      useragent: {
+        browser: { family: browserfamily = "unknown" } = {},
+        os: { family: osfamily = "unknown" } = {},
+      } = {},
+    },
+  } = fingerprint;
 
-    // the user may started different sessions on diff devices
-    // if accessToken expires check to delete prev refreshtokens
-    let userRefreshTokensArr;
+  // the user may started different sessions on diff devices
+  // if accessToken expires check to delete prev refreshtokens
+  let userRefreshTokensArr;
 
-    userRefreshTokensArr = user.token;
-    if (userRefreshTokensArr.length >= 5) {
-      userRefreshTokensArr = userRefreshTokensArr.slice(-4); // up to 5 sessions active
-    } // this 4 and the new one
+  userRefreshTokensArr = user.token;
+  if (userRefreshTokensArr.length >= 5) {
+    userRefreshTokensArr = userRefreshTokensArr.slice(-4); // up to 5 sessions active
+  } // this 4 and the new one
 
-    // eslint-disable-next-line no-underscore-dangle
-    const refreshToken = jwt.sign({ id: user._id }, config.secret, {
-      expiresIn: config.expiryRefreshToken,
-    });
+  const refreshToken = jwt.sign({ id: user._id }, config.secret, {
+    expiresIn: config.expiryRefreshToken,
+  });
 
-    new Token({
+  try {
+    const token = await new Token({
       refreshToken,
       hash,
       osfamily,
       browserfamily,
-    }).save((error, token) => {
-      if (error) {
-        return reject(new Error(error));
-      }
+    }).save();
 
-      userRefreshTokensArr.push(token);
-      user.token = userRefreshTokensArr; // eslint-disable-line
-      user.save((e) => {
-        if (e) {
-          return reject(new Error(e));
-        }
-        return resolve(refreshToken);
-      });
-    });
-  });
+    userRefreshTokensArr.push(token);
+    user.token = userRefreshTokensArr;
+
+    // Save user with updated token
+    await user.save();
+
+    return refreshToken;
+  } catch (error) {
+    return Promise.reject(new Error(error));
+  }
 }
 
 export function verifyJWTToken(token) {
@@ -69,7 +65,7 @@ export function verifyJWTToken(token) {
         return reject(new Error(`Access token: ${err.message}`));
       }
       if (!decodedToken || !decodedToken.id) {
-        return reject(new Error('Access token is invalid'));
+        return reject(new Error("Access token is invalid"));
       }
       return resolve(decodedToken.id);
     });
@@ -83,7 +79,7 @@ export function verifyRefreshToken(token, fingerprint) {
         return reject(new Error(e.message));
       }
       if (!rToken || rToken === undefined || rToken === null) {
-        return reject(new Error('Refresh token doesnt exist (verify)'));
+        return reject(new Error("Refresh token doesnt exist (verify)"));
       }
 
       jwt.verify(rToken.refreshToken, config.secret, (err, decodedToken) => {
@@ -91,15 +87,13 @@ export function verifyRefreshToken(token, fingerprint) {
           return reject(new Error(`Refresh token: ${err.message}`));
         }
         if (!decodedToken || !decodedToken.id) {
-          return reject(new Error('Refresh token is invalid'));
+          return reject(new Error("Refresh token is invalid"));
         }
 
         // si el refresh token es valido actualizarlo
         processRefreshToken(token, fingerprint)
-          .then((tokens) =>
-            resolve(tokens))
-          .catch((error) =>
-            reject(new Error(error.message)));
+          .then((tokens) => resolve(tokens))
+          .catch((error) => reject(new Error(error.message)));
       });
     });
   });
@@ -111,8 +105,8 @@ export function processRefreshToken(token, fingerprint) {
       hash,
       components: {
         useragent: {
-          browser: { family: browserfamily = 'unknown' } = {},
-          os: { family: osfamily = 'unknown' } = {},
+          browser: { family: browserfamily = "unknown" } = {},
+          os: { family: osfamily = "unknown" } = {},
         } = {},
       },
     } = fingerprint;
@@ -121,19 +115,19 @@ export function processRefreshToken(token, fingerprint) {
 
     User.findOne({ _id: decodedToken.id }, (err, user) => {
       if (err) {
-        return reject(new Error('Internal server error'));
+        return reject(new Error("Internal server error"));
       }
 
       if (!user || !user.token.length) {
-        return reject(new Error('No refresh token, access forbidden'));
+        return reject(new Error("No refresh token, access forbidden"));
       }
 
       Token.findOne({ refreshToken: token }, (e, rToken) => {
         if (e) {
-          return reject(new Error('Internal server error'));
+          return reject(new Error("Internal server error"));
         }
         if (!rToken || rToken === undefined || rToken === null) {
-          return reject(new Error('Refresh token doesnt exist (process).'));
+          return reject(new Error("Refresh token doesnt exist (process)."));
         }
         const newRefreshToken = jwt.sign({ id: user.id }, config.secret, {
           expiresIn: config.expiryRefreshToken,
@@ -147,7 +141,7 @@ export function processRefreshToken(token, fingerprint) {
           },
           (error, _doc) => {
             if (error) {
-              return reject(new Error('Refresh token failure'));
+              return reject(new Error("Refresh token failure"));
             }
 
             const newAccessToken = getAccessToken(user.id);
@@ -155,7 +149,7 @@ export function processRefreshToken(token, fingerprint) {
               accessToken: newAccessToken,
               refreshToken: newRefreshToken,
             });
-          },
+          }
         );
       });
     });
