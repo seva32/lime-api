@@ -115,63 +115,44 @@ export const signup = (req, res) => {
 };
 
 // signout controller to handle refreshToken deletion on singout redux action
-export const signout = (req, res) => {
+export const signout = async (req, res) => {
   if (req.cookies.refreshToken) {
-    Token.findOne({ refreshToken: req.cookies.refreshToken }, (err, token) => {
-      if (err) {
-        console.log("Singout mongoose/token error: ", err.message);
-        return res.status(500).send({ message: "Internal server error" });
-      }
+    try {
+      const token = await Token.findOne({
+        refreshToken: req.cookies.refreshToken,
+      });
+
       if (!token) {
         return res.status(404).send({ message: "Refresh token Not found." });
       }
 
       if (req.body.email) {
-        User.findOne({ email: req.body.email }, (err, user) => {
-          if (err) {
-            console.log("Singout mongoose/user error: ", err.message);
-            return res.status(500).send({
-              message: "Internal server error",
-            });
-          }
-          if (!user) {
-            return res.status(404).send({
-              message: "User Not found.",
-            });
-          }
+        const user = await User.findOne({ email: req.body.email });
 
-          user.token = user.token.filter((u) => !u.equals(token._id));
-
-          user.save((err) => {
-            if (err) {
-              console.log("Singout mongoose/user error: ", err.message);
-              return res.status(500).send({
-                message: "Internal server error",
-              });
-            }
-            Token.deleteOne(
-              {
-                _id: token._id,
-              },
-              (err) => {
-                if (err) {
-                  console.log("Singout mongoose/token error: ", err.message);
-                  return res.status(500).send({
-                    message: "Internal server error",
-                  });
-                }
-                return res.send({
-                  ok: "ok",
-                });
-              }
-            );
+        if (!user) {
+          return res.status(404).send({
+            message: "User Not found.",
           });
+        }
+
+        user.token = user.token.filter((u) => !u.equals(token._id));
+
+        await user.save();
+        await Token.deleteOne({ _id: token._id });
+
+        return res.send({
+          ok: "ok",
         });
       } else {
         // no email in req body
         return res.status(404).send({ message: "No email provided." });
       }
-    });
+    } catch (err) {
+      console.log("Error during signout:", err.message);
+      return res.status(500).send({
+        message: "Internal server error",
+      });
+    }
   } else {
     // no cookie.refreshToken
     return res.status(404).send({ message: "Action forbidden." });
