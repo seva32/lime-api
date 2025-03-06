@@ -1,9 +1,9 @@
 // 1. Set up your server to make calls to PayPal
 
 // 1a. Import the SDK package
-import paypal from '@paypal/checkout-server-sdk';
-import axios from 'axios';
-import { client } from '../functions/paypalCheckoutSdk';
+import paypal from "@paypal/checkout-server-sdk";
+import axios from "axios";
+import { client } from "../functions/paypalCheckoutSdk";
 
 // 1b. Import the PayPal SDK client that was created in `Set up Server-Side SDK`.
 /**
@@ -15,124 +15,121 @@ const payPalClient = client;
 
 export function createAccessToken(req, res) {
   axios({
-    url: 'https://api.sandbox.paypal.com/v1/identity/generate-token',
-    method: 'post',
+    url: "https://api.sandbox.paypal.com/v1/identity/generate-token",
+    method: "post",
     headers: {
-      Accept: 'application/json',
-      'Accept-Language': 'en_US',
+      Accept: "application/json",
+      "Accept-Language": "en_US",
     },
     auth: {
       username: process.env.PAYPAL_CLIENT,
       password: process.env.PAYPAL_SECRET,
     },
-    data: { grant_type: 'client_credentials' },
+    data: { grant_type: "client_credentials" },
   })
     .then(({ data }) => {
       res.send({ data });
     })
     .catch((e) => {
       console.log(e.message);
-      return res.status(401).send({ message: 'Unauthorized' });
+      return res.status(401).send({ message: "Unauthorized" });
     });
 }
 
 // 2. Set up your server to receive a call from the client
 export async function handleRequest(req, res) {
-  // 3. Call PayPal to set up a transaction
   const request = new paypal.orders.OrdersCreateRequest();
-  request.prefer('return=representation');
+  request.prefer("return=representation");
   request.requestBody({
-    intent: 'CAPTURE',
+    intent: "CAPTURE",
     purchase_units: [
       {
         amount: {
-          currency_code: 'USD',
-          value: '220.00',
+          currency_code: "USD",
+          value: "220.00",
         },
       },
     ],
   });
 
-  let order;
   try {
-    order = await payPalClient.client().execute(request);
+    const order = await payPalClient.client().execute(request);
+    return res.status(200).json({ orderID: order.result.id });
   } catch (err) {
-    // 4. Handle any errors from the call
-    console.error(err);
-    return res.send(500);
+    console.error("PayPal Order Creation Error:", err);
+    return res.status(500).json({ error: "Failed to create PayPal order" });
   }
-
-  // 5. Return a successful response to the client with the order ID
-  return res.status(200).json({
-    orderID: order.result.id,
-  });
 }
 
 export async function handleRequestAuth(req, res) {
   // 3. Call PayPal to set up an authorization transaction
   const request = new paypal.orders.OrdersCreateRequest();
-  request.prefer('return=representation');
+  request.prefer("return=representation");
   request.requestBody({
-    intent: 'AUTHORIZE',
+    intent: "AUTHORIZE",
     purchase_units: [
       {
         amount: {
-          currency_code: 'USD',
-          value: '220.00',
+          currency_code: "USD",
+          value: "220.00",
         },
       },
     ],
   });
 
-  let order;
   try {
-    order = await payPalClient.client().execute(request);
+    const order = await payPalClient.client().execute(request);
+    return res.status(200).json({ orderID: order.result.id });
   } catch (err) {
-    // 4. Handle any errors from the call
-    console.error(err);
-    return res.send(500);
+    console.error("PayPal Authorization Error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to create PayPal authorization" });
   }
-
-  // 5. Return a successful response to the client with the order ID
-  return res.status(200).json({
-    orderID: order.result.id,
-  });
 }
 
-// Get Transaction order details from paypal
+// Get Transaction order details from PayPal
 export async function handleRequestTransactionDetails(req, res) {
   // 2a. Get the order ID from the request body
   const { orderID } = req.body;
 
+  if (!orderID) {
+    return res.status(400).json({ error: "Missing order ID" });
+  }
+
   // 3. Call PayPal to get the transaction details
   const request = new paypal.orders.OrdersGetRequest(orderID);
 
-  let order;
   try {
-    order = await payPalClient.client().execute(request);
+    const order = await payPalClient.client().execute(request);
+
+    // 5. Validate the transaction details are as expected
+    if (order.result.purchase_units[0].amount.value !== "220.00") {
+      return res.status(400).json({ error: "Transaction amount mismatch" });
+    }
+
+    // 6. Save the transaction in your database
+    // await database.saveTransaction(orderID);
+
+    // 7. Return a successful response to the client
+    return res.status(200).json({ message: "Transaction verified", orderID });
   } catch (err) {
     // 4. Handle any errors from the call
-    console.error(err);
-    return res.send(500);
+    console.error("PayPal Transaction Details Error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to retrieve PayPal transaction details" });
   }
-
-  // 5. Validate the transaction details are as expected
-  if (order.result.purchase_units[0].amount.value !== '220.00') {
-    return res.send(400);
-  }
-
-  // 6. Save the transaction in your database
-  // await database.saveTransaction(orderID);
-
-  // 7. Return a successful response to the client
-  return res.send(200);
 }
 
-//
 // client and server are set up to call the Orders API to capture funds from an order
 export async function handleRequestCaptureFunds(req, res) {
   // 2a. Get the order ID from the request body
   const { orderID } = req.body;
+
+  if (!orderID) {
+    return res.status(400).json({ error: "Missing order ID" });
+  }
 
   // 3. Call PayPal to capture the order
   const request = new paypal.orders.OrdersCaptureRequest(orderID);
@@ -141,24 +138,28 @@ export async function handleRequestCaptureFunds(req, res) {
   try {
     const capture = await payPalClient.client().execute(request);
 
-    // 4. Save the capture ID to your database. Implement logic to save
-    // capture to your database for future reference.
-    // eslint-disable-next-line no-unused-vars
+    // 4. Save the capture ID to your database for future reference
     const captureID = capture.result.purchase_units[0].payments.captures[0].id;
     // await database.saveCaptureID(captureID);
+
+    // 6. Return a successful response to the client
+    return res
+      .status(200)
+      .json({ message: "Funds captured successfully", captureID });
   } catch (err) {
     // 5. Handle any errors from the call
-    console.error(err);
-    return res.send(500);
+    console.error("PayPal Capture Funds Error:", err);
+    return res.status(500).json({ error: "Failed to capture funds" });
   }
-
-  // 6. Return a successful response to the client
-  return res.send(200);
 }
 
 export async function handleRequestAuthTransactionId(req, res) {
   // 2a. Get the order ID from the request body
   const { orderID } = req.body;
+
+  if (!orderID) {
+    return res.status(400).json({ error: "Missing order ID" });
+  }
 
   // 3. Call PayPal to create the authorization
   const request = new paypal.orders.OrdersAuthorizeRequest(orderID);
@@ -168,46 +169,48 @@ export async function handleRequestAuthTransactionId(req, res) {
     const authorization = await payPalClient.client().execute(request);
 
     // 4. Save the authorization ID to your database
-    // eslint-disable-next-line no-unused-vars
     const authorizationID =
       authorization.result.purchase_units[0].payments.authorizations[0].id;
     // await database.saveAuthorizationID(authorizationID);
+
+    // 6. Return a successful response to the client
+    return res
+      .status(200)
+      .json({ message: "Transaction authorized", authorizationID });
   } catch (err) {
     // 5. Handle any errors from the call
-    console.error(err);
-    return res.send(500);
+    console.error("PayPal Authorization Error:", err);
+    return res.status(500).json({ error: "Failed to authorize transaction" });
   }
-
-  // 6. Return a successful response to the client
-  return res.send(200);
 }
 
-// get the capture id for refunding
+// Get the capture ID for refunding
 export async function captureAuthorization() {
   // 2. Get the authorization ID from your database
   const authorizationID = 123; // database.lookupAuthorizationID();
 
+  if (!authorizationID) {
+    console.error("Error: Missing authorization ID");
+    return;
+  }
+
   // 3. Call PayPal to capture the authorization
   const request = new paypal.payments.AuthorizationsCaptureRequest(
-    authorizationID,
+    authorizationID
   );
   request.requestBody({});
+
   try {
     const capture = await payPalClient.client().execute(request);
 
-    // 4. Save the capture ID to your database for future reference.
-    // eslint-disable-next-line no-unused-vars
+    // 4. Save the capture ID to your database for future reference
     const captureID = capture.result.purchase_units[0].payments.captures[0].id;
     // await database.saveCaptureID(captureID);
 
-    // The capture request generates a response with a capture ID that
-    // you can use for refunding transactions:
-    // {
-    //   "id": "1HW32023TU4585620"
-    // }
+    console.log("Capture successful, capture ID:", captureID);
   } catch (err) {
     // 5. Handle any errors from the call
-    console.error(err);
+    console.error("PayPal Capture Authorization Error:", err);
   }
 }
 

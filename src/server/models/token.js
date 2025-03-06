@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
-mongoose.set('useCreateIndex', true);
 
 const tokenSchema = new Schema({
   refreshToken: {

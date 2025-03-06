@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import fingerprint from "express-fingerprint";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
+import MongoStore from "connect-mongo";
 
 import { cookiesOptions } from "./contollers/config";
 import { rateLimiterMiddleware } from "./middleware";
@@ -45,17 +46,21 @@ server.use(
 server.use(cookieParser());
 server.use(fingerprint());
 
-const whitelist = ['https://limebasket.sfantini.us', 'https://sfantini.us', 'http://localhost:3000'];
+const whitelist = [
+  "https://limebasket.sfantini.us",
+  "https://sfantini.us",
+  "http://localhost:3000",
+];
 const corsOptionsDelegate = function (req, callback) {
   var corsOptions;
-  if (whitelist.indexOf(req.header('Origin')) !== -1) {
-    corsOptions = { origin: true, credentials: true } // reflect (enable) the requested origin in the CORS response
+  if (whitelist.indexOf(req.header("Origin")) !== -1) {
+    corsOptions = { origin: true, credentials: true }; // reflect (enable) the requested origin in the CORS response
   } else {
-    corsOptions = { origin: false } // disable CORS for this request
+    corsOptions = { origin: false }; // disable CORS for this request
   }
-  callback(null, corsOptions) // callback expects two parameters: error and options
-}
-server.options('*', cors(corsOptionsDelegate));
+  callback(null, corsOptions); // callback expects two parameters: error and options
+};
+server.options("*", cors(corsOptionsDelegate));
 
 process.env.NODE_ENV === "production" &&
   server.use(
@@ -65,14 +70,16 @@ process.env.NODE_ENV === "production" &&
   );
 
 const session = require("express-session");
-const MongoStore = require("connect-mongo")(session);
 const swaggerDocument = require("../../swagger.json");
 import { Request, Response, NextFunction } from "express";
 
 server.use(
   session({
     secret: process.env.LOGIN_SERVER_SECRET,
-    store: new MongoStore({ url: process.env.MONGOOSE }),
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGOOSE,
+      collectionName: "sessions",
+    }),
     saveUninitialized: true,
     resave: true,
     cookie: cookiesOptions,
