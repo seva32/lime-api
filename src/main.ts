@@ -1,8 +1,8 @@
 import cluster from "node:cluster";
-import os from "node:os";
 import server from "./server/express";
 import db from "./server/models";
 import initial from "./server/models/initial";
+import os from "os";
 
 const isProd = process.env.NODE_ENV === "production";
 const isDev = !isProd;
@@ -10,44 +10,24 @@ const PORT = process.env.PORT || 4939;
 const HOST = "localhost";
 const WORKERS = Number(process.env.WEB_CONCURRENCY) || os.cpus().length;
 
-function start() {
-  const done = () => {
-    db.mongoose.set("useFindAndModify", false);
-    interface MongooseOptions {
-      useNewUrlParser: boolean;
-      useUnifiedTopology: boolean;
-      autoIndex: boolean;
-    }
-
-    interface RoleModel {
-      // Define the properties of the Role model here
-    }
-
-    const mongooseOptions: MongooseOptions = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+async function start() {
+  try {
+    await db.mongoose.connect(process.env.MONGOOSE as string, {
       autoIndex: isDev,
-    };
+    });
 
-    db.mongoose
-      .connect(process.env.MONGOOSE as string, mongooseOptions)
-      .then(() => {
-        console.log("Successfully connected to MongoDB.");
-        initial(db.role as RoleModel);
+    console.log("Successfully connected to MongoDB.");
+    await initial(db.role);
 
-        server.listen(PORT, () => {
-          console.log(
-            `Worker ${process.pid} listening on http://${HOST}:${PORT} in ${process.env.NODE_ENV} mode...`
-          );
-        });
-      })
-      .catch((err: Error) => {
-        console.error("MongoDB connection error", err);
-        process.exit(1);
-      });
-  };
-
-  done();
+    server.listen(PORT, () => {
+      console.log(
+        `Worker ${process.pid} listening on http://${HOST}:${PORT} in ${process.env.NODE_ENV} mode...`
+      );
+    });
+  } catch (err) {
+    console.error("MongoDB connection error", err);
+    process.exit(1);
+  }
 }
 
 if (cluster.isPrimary) {

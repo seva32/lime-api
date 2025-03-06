@@ -3,7 +3,6 @@
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
-mongoose.set('useCreateIndex', true);
 
 // define model
 const userSchema = new Schema(

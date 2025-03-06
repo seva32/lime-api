@@ -4,18 +4,18 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable consistent-return */
 /* eslint-disable no-shadow */
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import sgMail from '@sendgrid/mail';
-import omit from 'lodash.omit';
-import waterfall from 'async/waterfall';
-import db from '../models/index';
-import config, { cookiesOptions } from './config';
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import sgMail from "@sendgrid/mail";
+import omit from "lodash.omit";
+import waterfall from "async/waterfall";
+import db from "../models/index";
+import config, { cookiesOptions } from "./config";
 import {
   getAccessToken,
   getRefreshToken,
   processRefreshToken,
-} from '../functions/jwt';
+} from "../functions/jwt";
 
 const User = db.user;
 const Role = db.role;
@@ -39,10 +39,10 @@ export const signup = (req, res) => {
               }
               rolesResult = roles.map((role) => role._id);
               return callback(null, rolesResult);
-            },
+            }
           );
         } else {
-          Role.findOne({ name: 'user' }, (_err, role) => {
+          Role.findOne({ name: "user" }, (_err, role) => {
             rolesResult = [role._id];
             return callback(null, rolesResult);
           });
@@ -55,7 +55,7 @@ export const signup = (req, res) => {
           provider = new ThirdPartyProvider({
             provider_name: req.body.profile.provider,
             provider_id: req.body.profile.id,
-            provider_data: omit(req.body.profile, ['provider', 'id']),
+            provider_data: omit(req.body.profile, ["provider", "id"]),
           });
           provider.save();
           return callback(null, { rolesResult, provider });
@@ -70,7 +70,7 @@ export const signup = (req, res) => {
           password: bcrypt.hashSync(req.body.password, 8),
           nickname: req.body.nickname
             ? req.body.nickname
-            : req.body.email.split('@')[0],
+            : req.body.email.split("@")[0],
         });
         if (results.rolesResult) {
           user.roles = results.rolesResult;
@@ -85,7 +85,7 @@ export const signup = (req, res) => {
         const token = getAccessToken(user.id);
         getRefreshToken(user, req.fingerprint)
           .then((refreshToken) => {
-            res.cookie('refreshToken', refreshToken, cookiesOptions);
+            res.cookie("refreshToken", refreshToken, cookiesOptions);
             res.send({
               email: user.email,
               nickname: user.nickname,
@@ -105,12 +105,12 @@ export const signup = (req, res) => {
     (err) => {
       if (err) {
         console.log(
-          'Singup mongoose error: ',
-          err && err.message ? err.message : err,
+          "Singup mongoose error: ",
+          err && err.message ? err.message : err
         );
-        res.status(500).send({ message: 'Internal server error' });
+        res.status(500).send({ message: "Internal server error" });
       }
-    },
+    }
   );
 };
 
@@ -119,34 +119,34 @@ export const signout = (req, res) => {
   if (req.cookies.refreshToken) {
     Token.findOne({ refreshToken: req.cookies.refreshToken }, (err, token) => {
       if (err) {
-        console.log('Singout mongoose/token error: ', err.message);
-        return res.status(500).send({ message: 'Internal server error' });
+        console.log("Singout mongoose/token error: ", err.message);
+        return res.status(500).send({ message: "Internal server error" });
       }
       if (!token) {
-        return res.status(404).send({ message: 'Refresh token Not found.' });
+        return res.status(404).send({ message: "Refresh token Not found." });
       }
 
       if (req.body.email) {
         User.findOne({ email: req.body.email }, (err, user) => {
           if (err) {
-            console.log('Singout mongoose/user error: ', err.message);
+            console.log("Singout mongoose/user error: ", err.message);
             return res.status(500).send({
-              message: 'Internal server error',
+              message: "Internal server error",
             });
           }
           if (!user) {
             return res.status(404).send({
-              message: 'User Not found.',
+              message: "User Not found.",
             });
           }
 
-          user.token = user.token.filter((u) => !u.equals(token._id)); // eslint-disable-line
+          user.token = user.token.filter((u) => !u.equals(token._id));
 
           user.save((err) => {
             if (err) {
-              console.log('Singout mongoose/user error: ', err.message);
+              console.log("Singout mongoose/user error: ", err.message);
               return res.status(500).send({
-                message: 'Internal server error',
+                message: "Internal server error",
               });
             }
             Token.deleteOne(
@@ -155,95 +155,85 @@ export const signout = (req, res) => {
               },
               (err) => {
                 if (err) {
-                  console.log('Singout mongoose/token error: ', err.message);
+                  console.log("Singout mongoose/token error: ", err.message);
                   return res.status(500).send({
-                    message: 'Internal server error',
+                    message: "Internal server error",
                   });
                 }
                 return res.send({
-                  ok: 'ok',
+                  ok: "ok",
                 });
-              },
+              }
             );
           });
         });
       } else {
         // no email in req body
-        return res.status(404).send({ message: 'No email provided.' });
+        return res.status(404).send({ message: "No email provided." });
       }
     });
   } else {
     // no cookie.refreshToken
-    return res.status(404).send({ message: 'Action forbidden.' });
+    return res.status(404).send({ message: "Action forbidden." });
   }
 };
 
-export const signin = (req, res) => {
-  User.findOne({
-    email: req.body.email,
-  })
-    .populate('roles', '-__v')
-    .exec(async (err, user) => {
-      if (err) {
-        console.log('Singin mongoose/user error: ', err.message);
-        res.status(500).send({ message: 'Internal server error' });
-        return;
-      }
+export const signin = async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email })
+      .populate("roles", "-__v")
+      .exec();
 
-      if (!user) {
-        res.status(404).send({ message: 'User Not found.' });
-        return;
-      }
+    if (!user) {
+      return res.status(404).send({ message: "User Not Found." });
+    }
 
-      const passwordIsValid = bcrypt.compareSync(
-        req.body.password,
-        user.password,
+    const passwordIsValid = bcrypt.compareSync(
+      req.body.password,
+      user.password
+    );
+    if (!passwordIsValid) {
+      return res.status(401).send({
+        accessToken: null,
+        message: "Invalid Password!",
+      });
+    }
+
+    const token = getAccessToken(user.id);
+    try {
+      const refreshToken = await getRefreshToken(user, req.fingerprint);
+      const authorities = user.roles.map(
+        (role) => `ROLE_${role.name.toUpperCase()}`
       );
 
-      if (!passwordIsValid) {
-        res.status(401).send({
-          accessToken: null,
-          message: 'Invalid Password!',
-        });
-        return;
-      }
-
-      const token = getAccessToken(user.id);
-      getRefreshToken(user, req.fingerprint)
-        .then((refreshToken) => {
-          const authorities = [];
-
-          for (let i = 0; i < user.roles.length; i++) {
-            authorities.push(`ROLE_${user.roles[i].name.toUpperCase()}`);
-          }
-
-          res.cookie('refreshToken', refreshToken, cookiesOptions);
-          res.status(200).send({
-            email: user.email,
-            nickname: user.nickname,
-            roles: authorities,
-            image: user.image,
-            accessToken: token,
-            expiryToken: config.expiryToken,
-          });
-        })
-        .catch((error) => {
-          // no es obj err de mongoose
-          res.status(500).send({ message: error });
-        });
-    });
+      res.cookie("refreshToken", refreshToken, cookiesOptions);
+      return res.status(200).send({
+        email: user.email,
+        nickname: user.nickname,
+        roles: authorities,
+        image: user.image,
+        accessToken: token,
+        expiryToken: config.expiryToken,
+      });
+    } catch (error) {
+      return res.status(500).send({ message: error });
+    }
+  } catch (err) {
+    console.error("Signin mongoose/user error: ", err.message);
+    return res.status(500).send({ message: "Internal server error" });
+  }
 };
 
 export const refreshTokenController = (req, res) => {
   const refreshToken =
     req.headers.cookie
-      .split(';')
-      .filter((c) => c.includes('refreshToken'))[0]
-      .split('=')[1] || '';
+      .split(";")
+      .filter((c) => c.includes("refreshToken"))[0]
+      .split("=")[1] || "";
 
   processRefreshToken(refreshToken, req.fingerprint)
     .then((tokens) => {
-      res.cookie('refreshToken', tokens.refreshToken, cookiesOptions);
+      res.cookie("refreshToken", tokens.refreshToken, cookiesOptions);
       return res.send({
         accessToken: tokens.accessToken,
         expiryToken: config.expiryToken,
@@ -255,125 +245,91 @@ export const refreshTokenController = (req, res) => {
     });
 };
 
-export const resetPassword = (req, res) => {
-  crypto.randomBytes(32, (err, buffer) => {
-    if (err) {
-      console.log('Crypto error: ', err);
-      return res.status(500).send({
-        message: 'We couldnt process your request, please try again.',
-      });
+export const resetPassword = async (req, res) => {
+  try {
+    const buffer = await crypto.randomBytes(32);
+    const token = buffer.toString("hex");
+
+    const user = await User.findOne({ email: req.body.email })
+      .populate("roles", "-__v")
+      .exec();
+
+    if (!user) {
+      return res.status(404).send({ message: "User Email Not found." });
     }
-    const token = buffer.toString('hex');
 
-    User.findOne({
-      email: req.body.email,
-    })
-      .populate('roles', '-__v')
-      .exec(async (err, user) => {
-        if (err) {
-          console.log('Reset password mongoose/user error: ', err.message);
-          res.status(500).send({ message: 'Internal server error' });
-          return;
-        }
+    user.resetPasswordToken = token;
+    user.resetPasswordTokenExpiration = Date.now() + 3600000;
 
-        if (!user) {
-          res.status(404).send({ message: 'User Email Not found.' });
-          return;
-          // main err handler
-          // const err = new Error('User Email Not found');
-          // err.status = 404;
-          // return next(err);
-        }
+    await user.save();
 
-        user.resetPasswordToken = token;
-        user.resetPasswordTokenExpiration = Date.now() + 3600000;
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    const hosting =
+      process.env.NODE_ENV === "production"
+        ? `https://${process.env.SERVER_URL}`
+        : `http://${process.env.SERVER_URL}`;
 
-        user.save((err) => {
-          if (err) {
-            console.log('Reset password mongoose/user error: ', err.message);
-            res.status(500).send({ message: 'Internal server error' });
-            return;
-          }
+    const msg = {
+      to: req.body.email,
+      from: "contact@seva32.tk",
+      subject: "Password reset on seva32.tk",
+      text: "You requested a password reset.",
+      html: `
+        <strong>You requested a password reset</strong>
+        <strong>Click this <a href="${hosting}/reset-password/${token}/${req.body.email}">link</a> to set a new password.</strong>
+      `,
+    };
 
-          sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-          const hosting =
-            process.env.NODE_ENV === 'production'
-              ? `https://${process.env.SERVER_URL}`
-              : `http://${process.env.SERVER_URL}`;
-          const msg = {
-            to: 'sebas.warsaw@gmail.com',
-            from: 'contact@seva32.tk', // es el que registre en sendgrid, sino exception
-            subject: 'Password reset on seva32.tk',
-            text: 'and easy to do anywhere, even with Node.js',
-            html: `
-            <strong>You requested a password reset</strong>
-            <strong>Click this <a href="${hosting}/reset-password/${token}/${req.body.email}">link</a> to set a new password.</strong>
-          `,
-          };
-          sgMail
-            .send(msg)
-            .then((_m) => res.redirect('/'))
-            .catch((e) => {
-              console.log('Sendgrid Error: ', e.response.body.errors);
-              return res.status(500).send({
-                message: 'We couldnt process your request, try again later',
-              });
-            });
-        });
-      });
-  });
+    await sgMail.send(msg);
+    return res.redirect("/");
+  } catch (err) {
+    console.error("Reset Password Error: ", err.message || err);
+    return res.status(500).send({
+      message: "We couldn't process your request, please try again.",
+    });
+  }
 };
 
-export const changePassword = (req, res) => {
-  const { newPassword, oldPassword, token, email } = req.body; // eslint-disable-line
+export const changePassword = async (req, res) => {
+  try {
+    const { newPassword, oldPassword, token, email } = req.body;
 
-  if (!newPassword || !oldPassword || !token || !email) {
-    return res
-      .status(401)
-      .send({ message: "Imcomplete data, we couldn't reset your password" });
-  }
+    if (!newPassword || !oldPassword || !token || !email) {
+      return res
+        .status(400)
+        .send({ message: "Incomplete data, we couldn't reset your password" });
+    }
 
-  User.findOne({
-    email,
-    resetPasswordToken: token,
-    resetPasswordTokenExpiration: { $gt: Date.now() },
-  })
-    .populate('roles', '-__v')
-    .exec(async (err, user) => {
-      if (err) {
-        console.log('Change password mongoose/user error: ', err.message);
-        res.status(500).send({ message: 'Internal server error' });
-        return;
-      }
-      if (!user) {
-        res
-          .status(404)
-          .send({ message: 'Invalid data trying to change your password.' });
-        return;
-      }
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: token,
+      resetPasswordTokenExpiration: { $gt: Date.now() },
+    }).populate("roles", "-__v");
 
-      const passwordIsValid = bcrypt.compareSync(oldPassword, user.password);
-
-      if (!passwordIsValid) {
-        return res.status(401).send({
-          message: "Your data didn't match, no change applied",
-        });
-      }
-
-      user.password = bcrypt.hashSync(req.body.newPassword, 8);
-      user.resetPasswordToken = undefined;
-      user.resetPasswordTokenExpiration = undefined;
-
-      user.save((err) => {
-        if (err) {
-          console.log('Change password mongoose/user error: ', err.message);
-          res.status(500).send({ message: 'Internal server error' });
-          return;
-        }
-
-        return res
-          .status(200)
-          .send({ message: 'Password changed! Signin with your new password' });
+    if (!user) {
+      return res.status(404).send({
+        message: "Invalid data trying to change your password.",
       });
+    }
+
+    const passwordIsValid = bcrypt.compareSync(oldPassword, user.password);
+    if (!passwordIsValid) {
+      return res.status(401).send({
+        message: "Your data didn't match, no change applied",
+      });
+    }
+
+    user.password = bcrypt.hashSync(newPassword, 8);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordTokenExpiration = undefined;
+
+    await user.save();
+
+    return res.status(200).send({
+      message: "Password changed! Sign in with your new password",
     });
+  } catch (err) {
+    console.error("Change password error:", err.message || err);
+    return res.status(500).send({ message: "Internal server error" });
+  }
 };

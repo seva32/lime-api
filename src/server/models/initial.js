@@ -1,37 +1,19 @@
-/* eslint-disable no-console */
-/* eslint-disable no-shadow */
-export default (Role) => {
-  Role.estimatedDocumentCount((err, count) => {
-    if (!err && count === 0) {
-      new Role({
-        name: 'user',
-      }).save((err) => {
-        if (err) {
-          console.log('error', err);
-        }
+export default async (Role) => {
+  try {
+    const count = await Role.estimatedDocumentCount(); // Use await to handle async function
 
-        console.log("added 'user' to roles collection");
-      });
+    if (count === 0) {
+      // Use create instead of new + save
+      await Role.create({ name: "user" });
+      console.log("added 'user' to roles collection");
 
-      new Role({
-        name: 'moderator',
-      }).save((err) => {
-        if (err) {
-          console.log('error', err);
-        }
+      await Role.create({ name: "moderator" });
+      console.log("added 'moderator' to roles collection");
 
-        console.log("added 'moderator' to roles collection");
-      });
-
-      new Role({
-        name: 'admin',
-      }).save((err) => {
-        if (err) {
-          console.log('error', err);
-        }
-
-        console.log("added 'admin' to roles collection");
-      });
+      await Role.create({ name: "admin" });
+      console.log("added 'admin' to roles collection");
     }
-  });
+  } catch (err) {
+    console.log("Error initializing roles:", err);
+  }
 };

@@ -23,7 +23,6 @@
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
-mongoose.set('useCreateIndex', true);
 
 const thirdPartyProviderSchema = new Schema({
   provider_name: {
