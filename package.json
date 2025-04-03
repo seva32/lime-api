@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "start": "node dist/out-tsc/src/main.js",
+    "start": "node dist/main.js",
     "dev": "ts-node-dev --respawn src/main.ts",
     "build": "tsc"
   },
