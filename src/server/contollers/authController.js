@@ -22,96 +22,60 @@ const Role = db.role;
 const Token = db.token;
 const ThirdPartyProvider = db.thirdPartyProviderSchema;
 
-export const signup = (req, res) => {
-  waterfall(
-    [
-      // add user roles
-      (callback) => {
-        let rolesResult;
-        if (req.body.roles) {
-          Role.find(
-            {
-              name: { $in: req.body.roles },
-            },
-            (err, roles) => {
-              if (err) {
-                return callback(err);
-              }
-              rolesResult = roles.map((role) => role._id);
-              return callback(null, rolesResult);
-            }
-          );
-        } else {
-          Role.findOne({ name: "user" }, (_err, role) => {
-            rolesResult = [role._id];
-            return callback(null, rolesResult);
-          });
-        }
-      },
-      // add profile data from 3rd party provider
-      (rolesResult, callback) => {
-        let provider;
-        if (req.body.profile) {
-          provider = new ThirdPartyProvider({
-            provider_name: req.body.profile.provider,
-            provider_id: req.body.profile.id,
-            provider_data: omit(req.body.profile, ["provider", "id"]),
-          });
-          provider.save();
-          return callback(null, { rolesResult, provider });
-        }
+export const signup = async (req, res) => {
+  try {
+    let rolesResult;
 
-        return callback(null, { rolesResult });
-      },
-      // create user
-      (results, callback) => {
-        const user = new User({
-          email: req.body.email,
-          password: bcrypt.hashSync(req.body.password, 8),
-          nickname: req.body.nickname
-            ? req.body.nickname
-            : req.body.email.split("@")[0],
-        });
-        if (results.rolesResult) {
-          user.roles = results.rolesResult;
-        }
-        if (results.provider) {
-          user.third_party_auth.push(results.provider);
-        }
-        callback(null, user);
-      },
-      // send back accessToken, save/send refreshToken, save user
-      (user, callback) => {
-        const token = getAccessToken(user.id);
-        getRefreshToken(user, req.fingerprint)
-          .then((refreshToken) => {
-            res.cookie("refreshToken", refreshToken, cookiesOptions);
-            res.send({
-              email: user.email,
-              nickname: user.nickname,
-              roles: user.roles,
-              image: user.image,
-              accessToken: token,
-              expiryToken: config.expiryToken,
-            });
-            callback(null);
-          })
-          .catch((error) => {
-            console.log(error);
-            callback(error);
-          });
-      },
-    ],
-    (err) => {
-      if (err) {
-        console.log(
-          "Singup mongoose error: ",
-          err && err.message ? err.message : err
-        );
-        res.status(500).send({ message: "Internal server error" });
-      }
+    if (req.body.roles) {
+      const roles = await Role.find({
+        name: { $in: req.body.roles },
+      });
+      rolesResult = roles.map((role) => role._id);
+    } else {
+      const role = await Role.findOne({ name: "user" });
+      if (!role) throw new Error("Default role not found.");
+      rolesResult = [role._id];
     }
-  );
+
+    let provider;
+    if (req.body.profile) {
+      provider = new ThirdPartyProvider({
+        provider_name: req.body.profile.provider,
+        provider_id: req.body.profile.id,
+        provider_data: omit(req.body.profile, ["provider", "id"]),
+      });
+      await provider.save();
+    }
+
+    const user = new User({
+      email: req.body.email,
+      password: bcrypt.hashSync(req.body.password, 8),
+      nickname: req.body.nickname || req.body.email.split("@")[0],
+      roles: rolesResult,
+    });
+
+    if (provider) {
+      user.third_party_auth.push(provider);
+    }
+
+    const refreshToken = await getRefreshToken(user, req.fingerprint);
+    const accessToken = getAccessToken(user.id);
+
+    await user.save();
+
+    res.cookie("refreshToken", refreshToken, cookiesOptions);
+    res.send({
+      email: user.email,
+      nickname: user.nickname,
+      roles: user.roles,
+      image: user.image,
+      accessToken,
+      expiryToken: config.expiryToken,
+    });
+  } catch (err) {
+    console.error("Signup error:", err.message || err);
+    res.status(500).send({ message: "Internal server error" });
+  }
 };
 
 // signout controller to handle refreshToken deletion on singout redux action
@@ -161,9 +125,10 @@ export const signout = async (req, res) => {
 
 export const signin = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email })
-      .populate("roles", "-__v")
-      .exec();
+    const user = await User.findOne({ email: req.body.email }).populate(
+      "roles",
+      "-__v"
+    );
 
     if (!user) {
       return res.status(404).send({ message: "User Not Found." });
@@ -231,9 +196,10 @@ export const resetPassword = async (req, res) => {
     const buffer = await crypto.randomBytes(32);
     const token = buffer.toString("hex");
 
-    const user = await User.findOne({ email: req.body.email })
-      .populate("roles", "-__v")
-      .exec();
+    const user = await User.findOne({ email: req.body.email }).populate(
+      "roles",
+      "-__v"
+    );
 
     if (!user) {
       return res.status(404).send({ message: "User Email Not found." });
