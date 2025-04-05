@@ -72,86 +72,76 @@ export function verifyJWTToken(token) {
   });
 }
 
-export function verifyRefreshToken(token, fingerprint) {
-  return new Promise((resolve, reject) => {
-    Token.findOne({ refreshToken: token }, (e, rToken) => {
-      if (e) {
-        return reject(new Error(e.message));
-      }
-      if (!rToken || rToken === undefined || rToken === null) {
-        return reject(new Error("Refresh token doesnt exist (verify)"));
-      }
+export async function verifyRefreshToken(token, fingerprint) {
+  try {
+    const rToken = await Token.findOne({ refreshToken: token });
 
-      jwt.verify(rToken.refreshToken, config.secret, (err, decodedToken) => {
-        if (err) {
-          return reject(new Error(`Refresh token: ${err.message}`));
-        }
-        if (!decodedToken || !decodedToken.id) {
-          return reject(new Error("Refresh token is invalid"));
-        }
+    if (!rToken) {
+      throw new Error("Refresh token doesn't exist (verify)");
+    }
 
-        // si el refresh token es valido actualizarlo
-        processRefreshToken(token, fingerprint)
-          .then((tokens) => resolve(tokens))
-          .catch((error) => reject(new Error(error.message)));
-      });
-    });
-  });
+    const decodedToken = jwt.verify(rToken.refreshToken, config.secret);
+
+    if (!decodedToken || !decodedToken.id) {
+      throw new Error("Refresh token is invalid");
+    }
+
+    // If the refresh token is valid, update it
+    const tokens = await processRefreshToken(token, fingerprint);
+    return tokens;
+  } catch (error) {
+    throw new Error(error.message);
+  }
 }
 
-export function processRefreshToken(token, fingerprint) {
-  return new Promise((resolve, reject) => {
-    const {
-      hash,
-      components: {
-        useragent: {
-          browser: { family: browserfamily = "unknown" } = {},
-          os: { family: osfamily = "unknown" } = {},
-        } = {},
-      },
-    } = fingerprint;
+export async function processRefreshToken(token, fingerprint) {
+  const {
+    hash,
+    components: {
+      useragent: {
+        browser: { family: browserfamily = "unknown" } = {},
+        os: { family: osfamily = "unknown" } = {},
+      } = {},
+    },
+  } = fingerprint;
 
-    const decodedToken = jwt.verify(token, config.secret);
+  let decodedToken;
+  try {
+    decodedToken = jwt.verify(token, config.secret);
+  } catch (err) {
+    throw new Error("Invalid token");
+  }
 
-    User.findOne({ _id: decodedToken.id }, (err, user) => {
-      if (err) {
-        return reject(new Error("Internal server error"));
-      }
+  const user = await User.findById(decodedToken.id);
+  if (!user || !user.token?.length) {
+    throw new Error("No refresh token, access forbidden");
+  }
 
-      if (!user || !user.token.length) {
-        return reject(new Error("No refresh token, access forbidden"));
-      }
+  const rToken = await Token.findOne({ refreshToken: token });
+  if (!rToken) {
+    throw new Error("Refresh token doesn't exist (process).");
+  }
 
-      Token.findOne({ refreshToken: token }, (e, rToken) => {
-        if (e) {
-          return reject(new Error("Internal server error"));
-        }
-        if (!rToken || rToken === undefined || rToken === null) {
-          return reject(new Error("Refresh token doesnt exist (process)."));
-        }
-        const newRefreshToken = jwt.sign({ id: user.id }, config.secret, {
-          expiresIn: config.expiryRefreshToken,
-        });
-        rToken.updateOne(
-          {
-            refreshToken: newRefreshToken,
-            hash,
-            osfamily,
-            browserfamily,
-          },
-          (error, _doc) => {
-            if (error) {
-              return reject(new Error("Refresh token failure"));
-            }
-
-            const newAccessToken = getAccessToken(user.id);
-            return resolve({
-              accessToken: newAccessToken,
-              refreshToken: newRefreshToken,
-            });
-          }
-        );
-      });
-    });
+  const newRefreshToken = jwt.sign({ id: user.id }, config.secret, {
+    expiresIn: config.expiryRefreshToken,
   });
+
+  const update = {
+    refreshToken: newRefreshToken,
+    hash,
+    osfamily,
+    browserfamily,
+  };
+
+  const updateResult = await rToken.updateOne(update);
+  if (!updateResult.acknowledged) {
+    throw new Error("Refresh token failure");
+  }
+
+  const newAccessToken = getAccessToken(user.id);
+
+  return {
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  };
 }
