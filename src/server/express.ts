@@ -18,6 +18,7 @@ import {
   authFilterRouter,
   paymentRouter,
   shopRouter,
+  userRouter
 } from "./router";
 
 dotenv.config({ debug: true });
@@ -138,6 +139,7 @@ server.use("/lime-api/auth", authRouter);
 server.use(authFilterRouter);
 server.use("/lime-api/payment", paymentRouter);
 server.use("/lime-api/shop", shopRouter);
+server.use("/lime-api/users", userRouter);
 
 server.use(
   "/lime-api/uploads",
