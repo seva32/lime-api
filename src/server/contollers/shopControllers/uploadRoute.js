@@ -9,7 +9,7 @@ import db from "../../models";
 
 const User = db.user;
 
-const uploadDir = path.join(__dirname, "../../../uploads");
+const uploadDir = path.join(__dirname, "..", "..", "..", "..", "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -61,14 +61,16 @@ router.post(
         message: "Image is required.",
       });
     }
-    console.log(req.accessTokenUserId);
     const userId = req.accessTokenUserId;
     const user = await User.findById(userId);
     if (user) {
-      user.image = req.file.path;
+      const filePath = `/uploads/${req.file.filename}`;
+      user.image = filePath;
       const updatedUser = await user.save();
       if (updatedUser) {
-        return res.status(200).send({ filePath: `/${req.file.path}` });
+        return res
+          .status(200)
+          .send({ filePath, message: "Upload successful." });
       }
     }
     return res.status(500).send({ message: "Upload failed, try again." });
