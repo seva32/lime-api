@@ -50,8 +50,10 @@ server.use(fingerprint());
 const whitelist = [
   "https://limebasket.sfantini.us",
   "https://sfantini.us",
-  "http://localhost:3000",
 ];
+if (process.env.NODE_ENV === "development") {
+  whitelist.push("http://localhost:3000");
+}
 const corsOptionsDelegate = function (req, callback) {
   var corsOptions;
   if (whitelist.indexOf(req.header("Origin")) !== -1) {
@@ -91,11 +93,13 @@ server.use(
 
 server.use((req, res, next) => {
   const corsWhitelist = [
-    "http://localhost:3000",
     "https://sfantini.us",
     "https://limebasket.sfantini.us",
     "https://lime-api.sfantini.us",
   ];
+  if (process.env.NODE_ENV === "development") {
+    corsWhitelist.push("http://localhost:3000");
+  }
   if (corsWhitelist.includes(req.headers.origin)) {
     res.header("Access-Control-Allow-Origin", req.headers.origin);
     res.setHeader("Vary", "Origin");
