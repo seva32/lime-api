@@ -147,7 +147,7 @@ server.use("/lime-api/users", userRouter);
 
 server.use(
   "/lime-api/uploads",
-  express.static(path.join(__dirname, "../../uploads"))
+  express.static(path.join(__dirname, "..", "..", "uploads"))
 );
 
 // error handler

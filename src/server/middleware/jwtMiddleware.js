@@ -1,50 +1,36 @@
 import { verifyJWTToken, verifyRefreshToken } from "../functions/jwt";
 import { cookiesOptions } from "../contollers/config";
 
-function jwtMiddleware(req, res, next) {
+async function jwtMiddleware(req, res, next) {
   const token = req.get("X-Access-Token");
+  const refreshToken = req.cookies.refreshToken;
 
-  if (!token && !req.cookies.refreshToken) {
+  // No tokens provided
+  if (!token && !refreshToken) {
+    return res
+      .status(401)
+      .send({ message: "Access denied. No tokens provided." });
+  }
+
+  try {
+    // If refresh token exists, try refreshing tokens
+    if (refreshToken) {
+      const newTokens = await verifyRefreshToken(refreshToken, req.fingerprint);
+      res.cookie("refreshToken", newTokens.refreshToken, cookiesOptions);
+      res.setHeader("x-update-token", newTokens.accessToken);
+
+      const userId = await verifyJWTToken(token || newTokens.accessToken);
+      req.accessTokenUserId = userId;
+      return next();
+    }
+
+    // If only access token exists
+    const userId = await verifyJWTToken(token);
+    req.accessTokenUserId = userId;
+    return next();
+  } catch (err) {
+    console.error("JWT Middleware Error:", err.message);
     return res.status(401).send({ message: err.message });
-  } else if (req.cookies.refreshToken) {
-    verifyRefreshToken(req.cookies.refreshToken, req.fingerprint)
-      .then((newTokens) => {
-        res.cookie("refreshToken", newTokens.refreshToken, cookiesOptions);
-        res.setHeader("x-update-token", newTokens.accessToken);
-        if (token) {
-          verifyJWTToken(token)
-            .then((accessTokenUserId) => {
-              req.accessTokenUserId = accessTokenUserId;
-              return next();
-            })
-            .catch((err) => {
-              return res.status(401).send({ message: err.message });
-            });
-        } else {
-          verifyJWTToken(newTokens.accessToken)
-            .then((accessTokenUserId) => {
-              req.accessTokenUserId = accessTokenUserId;
-              return next();
-            })
-            .catch((err) => {
-              console.log(err.message);
-              return res.status(401).send({ message: err.message });
-            });
-        }
-      })
-      .catch((err) => {
-        return res.status(401).send({ message: err.message });
-      });
-  } else {
-    verifyJWTToken(token)
-      .then((accessTokenUserId) => {
-        req.accessTokenUserId = accessTokenUserId;
-        return next();
-      })
-      .catch((err) => {
-        console.log(err.message);
-        return res.status(401).send({ message: err.message });
-      });
   }
 }
 

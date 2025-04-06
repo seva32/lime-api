@@ -7,7 +7,6 @@ const User = db.user;
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-  console.log("Get all users", req.accessTokenUserId);
   try {
     const user = await User.findOne({ _id: req.accessTokenUserId });
     if (user) {
