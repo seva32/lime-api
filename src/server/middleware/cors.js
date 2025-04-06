@@ -3,6 +3,7 @@ import cors from "cors";
 const corsWhitelist = [
   process.env.SERVER_URL,
   "https://limebasket.sfantini.us",
+  "http://localhost:3000",
 ];
 
 const corsOptions = {
