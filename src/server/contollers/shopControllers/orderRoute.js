@@ -44,14 +44,14 @@ router.get("/:id", [cors, jwtMiddleware], async (req, res) => {
 
 router.delete("/:id", [cors, jwtMiddleware, isAdmin], async (req, res) => {
   try {
-    const order = await Order.findOne({ _id: req.params.id });
+    const order = await Order.findById(req.params.id);
     if (order) {
-      const deletedOrder = await order.remove();
-      return res.send(deletedOrder);
+      const deletedOrder = await Order.deleteOne({ _id: req.params.id }); // Use deleteOne
+      return res.send({ message: "Order deleted successfully.", deletedOrder });
     }
     return res.status(404).send("Order Not Found.");
   } catch (e) {
-    console.log("Order details failed: ", e);
+    console.log("Order deletion failed: ", e);
     return res
       .status(500)
       .send({ message: "Internal server error. Delete not available" });

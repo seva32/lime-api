@@ -120,14 +120,13 @@ router.delete("/:id", [cors, jwtMiddleware, isAdmin], async (req, res) => {
   try {
     const deletedProduct = await Product.findById(req.params.id);
     if (deletedProduct) {
-      await deletedProduct.remove();
-      const { _doc } = deletedProduct;
-      return res.send({ ..._doc });
+      const result = await Product.deleteOne({ _id: req.params.id }); // Use deleteOne
+      return res.send({ message: "Product deleted successfully.", result });
     }
-    return res.status(500).send({ message: " Error Deleting Product." });
+    return res.status(404).send({ message: "Product Not Found." });
   } catch (e) {
     console.log("Error on product deletion: ", e);
-    return res.status(500).send({ message: " Error Deleting Product." });
+    return res.status(500).send({ message: "Error Deleting Product." });
   }
 });
 
