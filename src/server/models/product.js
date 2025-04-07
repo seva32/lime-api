@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const reviewSchema = new mongoose.Schema(
   {
@@ -9,7 +9,7 @@ const reviewSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 const prodctSchema = new mongoose.Schema(
   {
@@ -17,18 +17,22 @@ const prodctSchema = new mongoose.Schema(
     image: { type: String, required: false },
     brand: { type: String, required: true },
     price: { type: Number, default: 0, required: true },
-    category: { type: String, required: true },
+    category: {
+      type: String,
+      required: true,
+      enum: ["dogs", "cats", "health"],
+    },
     countInStock: { type: Number, default: 0, required: true },
-    description: { type: String, default: 'Description', required: false },
+    description: { type: String, default: "Description", required: false },
     rating: { type: Number, default: 0, required: true },
     numReviews: { type: Number, default: 0, required: true },
     reviews: [reviewSchema],
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-const productModel = mongoose.model('product', prodctSchema);
+const productModel = mongoose.model("product", prodctSchema);
 
 export default productModel;
